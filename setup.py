@@ -11,7 +11,7 @@ with open('LICENSE') as f:
 
 setup(
     name='breadboard',
-    version='0.1.0',
+    version='0.1.1',
     description='Python API client for the Breadboard API in the Zwierlein labs',
     long_description=readme,
     author='Biswaroop Mukherjee',

@@ -2,6 +2,7 @@
 import json
 import pandas as pd
 import datetime
+import dateutil
 
 TIMEFORMATS = {
     'BEC1': '%m-%d-%Y_%H_%M_%S',
@@ -134,12 +135,17 @@ class ImageMixin:
         # Populate dataframe
         for i,r in df.iterrows():
             for param in paramsall:
-                try: # to get the run parameters
-                    df.at[i,param] = jsonresponse[i]['run']['parameters'][param]
-                except:
-                    try:# to get the bare image parameters
-                        df.at[i,param] = jsonresponse[i][param]
-                    except: # nan the rest
-                        df.at[i,param] = float('nan')
+                if param=='runtime':
+                    df.at[i, param] = jsonresponse[i]['run']['runtime']
+                elif param=='unixtime':
+                    df.at[i, param] = int(dateutil.parser.parse(jsonresponse[i]['run']['runtime']).timestamp())
+                else:
+                    try: # to get the run parameters
+                        df.at[i,param] = jsonresponse[i]['run']['parameters'][param]
+                    except:
+                        try:# to get the bare image parameters
+                            df.at[i,param] = jsonresponse[i][param]
+                        except: # nan the rest
+                            df.at[i,param] = float('nan')
 
         return df
