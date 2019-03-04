@@ -1,8 +1,18 @@
 import requests
+import urllib
 import json
 
 from breadboard.auth import BreadboardAuth
 from breadboard.mixins import ImageMixins
+
+
+class QuoteFixedSession(requests.Session):
+    def send(self, *a, **kw):
+        # a[0] is prepared request
+        a[0].url = a[0].url.replace(urllib.parse.quote(","), ",")
+        a[0].url = a[0].url.replace(urllib.parse.quote(":"), ":")
+        return requests.Session.send(self, *a, **kw)
+
 
 
 class BreadboardClient(ImageMixins.ImageMixin):
@@ -29,7 +39,7 @@ class BreadboardClient(ImageMixins.ImageMixin):
         else:
             self.lab_name = lab_name
 
-        self.session = requests.Session()
+        self.session = QuoteFixedSession()
 
 
     def _send_message(self, method, endpoint, params=None, data=None):

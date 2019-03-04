@@ -3,10 +3,14 @@ import json
 import pandas as pd
 import datetime
 import dateutil
+import re
+
+from warnings import warn
 
 TIMEFORMATS = {
     'BEC1': '%m-%d-%Y_%H_%M_%S',
-    'FERMI3':'%Y-%m-%d_%H_%M_%S'
+    'FERMI3':'%Y-%m-%d_%H_%M_%S',
+    'FERMI3_2':'%Y-%m-%d_%H-%M-%S',
 }
 
 def timestr_to_datetime(time_string, format=None):
@@ -43,7 +47,7 @@ class ImageMixin:
         return response
 
 
-    def get_images_json(self, image_names=None, auto_time=False, image_times=None, force_match=False, datetime_range=None ):
+    def get_images_json(self, image_names=None, auto_time=True, image_times=None, force_match=False, datetime_range=None ):
         # return all the API data corresponding to a set of images as JSON
         # todo: handle error codes
         """
@@ -67,10 +71,21 @@ class ImageMixin:
             imagetimeformat = TIMEFORMATS['FERMI3']
 
         if auto_time:
-            image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
+            try:
+                image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
+            except:
+                imagetimeformat = TIMEFORMATS['FERMI3_2']
+                try:
+                    image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
+                except:
+                    raise ValueError('Please check your image timestamps')
+
 
         if image_times:
             image_times = [clean_image_time(image_time) for image_time in image_times]
+            image_times = ','.join(image_times)
+        else:
+            image_times = None
 
         if datetime_range:
             datetime_range = [clean_image_time(image_time) for image_time in datetime_range]
@@ -79,23 +94,33 @@ class ImageMixin:
             'lab': self.lab_name,
             'names': namelist,
             'force_match': force_match,
-            'image_times': image_times,
+            'created': image_times,
             'datetime_range': datetime_range
         }
         payload_clean = {k: v for k, v in payload_dirty.items() if not (
                         v==None or
                         (isinstance(v, tuple) and (None in v))
                 )}
-
         response = self._send_message('get', '/images', params=payload_clean)
         return response
 
 
 
-
-    def get_images_df(self, image_names, paramsin="*"):
+    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False):
         """ Return a pandas dataframe for the given imagenames
+        inputs:
+        - image_names: a list of image names
+        - paramsin:
+            > ['param1','param2',...] : a list of params
+            > '*' for all params
+            > 'list_bound_only' for listbound params only
+        - xvar: a variable to use as df.x
+        - extended: a boolean to show all the keys from the image, like the url and id
+
+        outputs:
+        - df: the dataframe with params
         """
+
         if isinstance(image_names,str):
             image_names = [image_names]
 
@@ -106,18 +131,29 @@ class ImageMixin:
         # Prepare df
         df = pd.DataFrame(columns = ['imagename'])
         df['imagename'] = image_names
+        df['x'] = 0
 
         # Prepare params:
-        paramsall = set(jsonresponse[0].keys())
+        if extended:
+            paramsall = set(jsonresponse[0].keys())
+        else:
+            paramsall = set()
         if paramsin=='*':
             #  Get all params
             for jr in jsonresponse:
                 params = set(jr['run']['parameters'].keys())
                 paramsall = paramsall.union(params)
-        else:
+        elif paramsin=='list_bound_only':
+            # Get listbound params
+            for jr in jsonresponse:
+                try:
+                    params = set(jr['run']['parameters']['ListBoundVariables'])
+                except:
+                    params = set()
+                paramsall = paramsall.union(params)
+        else:# use set of params provided
             if isinstance(paramsin, str):
                 paramsin = [paramsin]
-            # use set of params provided
             paramsall = paramsall.union(set(paramsin))
 
         removeparams = set([
@@ -130,7 +166,12 @@ class ImageMixin:
                     'ListBoundVariables',
                     'camera',
                     ])
-        paramsall = paramsall - removeparams
+        addparams = set([
+                    'unixtime'
+                    ])
+
+        paramsall = (paramsall - removeparams).union(addparams)
+
 
         # Populate dataframe
         for i,r in df.iterrows():
@@ -148,4 +189,18 @@ class ImageMixin:
                         except: # nan the rest
                             df.at[i,param] = float('nan')
 
+        # Get the xvar
+        try:
+            df['x'] = df[xvar]
+        except:
+            warn('Invalid xvar!')
+
+        return df
+
+
+
+    def get_images_df_clipboard(self, xvar='unixtime'):
+        """ A convenient clipboard getter. Returns all parameters, and places the desired one in xvar
+        """
+        df = self.get_images_df(pd.read_clipboard(header=None)[0].tolist(), xvar=xvar)
         return df
