@@ -46,6 +46,9 @@ class BreadboardClient(ImageMixins.ImageMixin):
         """ Send an HTTP message to the API
         """
         url = self.api_url + endpoint
-        r = self.session.request(method, url, params=params, data=data,
-                                 headers=self.auth.headers, timeout=30)
+        try:
+            r = self.session.request(method, url, params=params, data=data,
+                                     headers=self.auth.headers, timeout=30)
+        except:
+            raise RuntimeError('Error sending the message to the API url. Please check your API url.')
         return r
