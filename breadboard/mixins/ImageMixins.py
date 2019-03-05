@@ -101,7 +101,7 @@ class ImageMixin:
                         v==None or
                         (isinstance(v, tuple) and (None in v))
                 )}
-        response = self._send_message('get', '/images', params=payload_clean)
+        response = self._send_message('post', '/images/', data=json.dumps(payload_clean))
         return response
 
 

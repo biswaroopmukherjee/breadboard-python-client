@@ -11,6 +11,7 @@ class QuoteFixedSession(requests.Session):
         # a[0] is prepared request
         a[0].url = a[0].url.replace(urllib.parse.quote(","), ",")
         a[0].url = a[0].url.replace(urllib.parse.quote(":"), ":")
+        # print(a[0].url)
         return requests.Session.send(self, *a, **kw)
 
 
