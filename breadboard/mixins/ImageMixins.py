@@ -47,7 +47,7 @@ class ImageMixin:
         return response
 
 
-    def get_images_json(self, image_names=None, auto_time=True, image_times=None, force_match=False, datetime_range=None ):
+    def post_images(self, image_names=None, auto_time=True, image_times=None, force_match=False, datetime_range=None, imagetimeformat=TIMEFORMATS['FERMI3'], **kwargs):
         # return all the API data corresponding to a set of images as JSON
         # todo: handle error codes
         """
@@ -67,8 +67,6 @@ class ImageMixin:
 
         if self.lab_name=='bec1':
             imagetimeformat = TIMEFORMATS['BEC1']
-        else:
-            imagetimeformat = TIMEFORMATS['FERMI3']
 
         if auto_time:
             try:
@@ -95,7 +93,8 @@ class ImageMixin:
             'names': namelist,
             'force_match': force_match,
             'created': image_times,
-            'datetime_range': datetime_range
+            'datetime_range': datetime_range,
+            **kwargs
         }
         payload_clean = {k: v for k, v in payload_dirty.items() if not (
                         v==None or
@@ -106,7 +105,7 @@ class ImageMixin:
 
 
 
-    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False):
+    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3']):
         """ Return a pandas dataframe for the given imagenames
         inputs:
         - image_names: a list of image names
@@ -116,6 +115,7 @@ class ImageMixin:
             > 'list_bound_only' for listbound params only
         - xvar: a variable to use as df.x
         - extended: a boolean to show all the keys from the image, like the url and id
+        - imagetimeformat : a python strptime format to parse the image times
 
         outputs:
         - df: the dataframe with params
@@ -125,8 +125,12 @@ class ImageMixin:
             image_names = [image_names]
 
         # Get data
-        response = self.get_images_json(image_names)
+        response = self.post_images(image_names, imagetimeformat=imagetimeformat)
         jsonresponse = response.json()
+
+        # Catch no images
+        if len(jsonresponse)==1 and jsonresponse['detail']=='warning: no run found':
+            raise RuntimeError('No runs found. Make sure that breadboard is running on the control computer, and that the image names are correct.')
 
         # Prepare df
         df = pd.DataFrame(columns = ['imagename'])

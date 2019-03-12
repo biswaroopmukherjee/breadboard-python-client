@@ -34,11 +34,11 @@ class TestClientPandas(object):
         time.sleep(0.5) #Avoid a rate limit
 
     def test_get_single_image_all_params_pandas(self, client):
-        df = client.get_images_df('10-09-2018_00_21_57_TopA')
+        df = client.get_images_df('10-09-2018_00_21_57_TopA','*')
         assert df.at[0,'FB_field_13_V']==3.774
 
     def test_get_multiple_images_all_params_pandas(self, client):
-        df = client.get_images_df(['10-09-2018_00_21_57_TopA','10-09-2018_00_21_57_TopB'])
+        df = client.get_images_df(['10-09-2018_00_21_57_TopA','10-09-2018_00_21_57_TopB'], '*')
         assert df.at[1,'ImagFreq0']==193.95
 
     def test_get_multiple_images_one_params_pandas(self, client):
