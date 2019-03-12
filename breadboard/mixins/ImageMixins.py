@@ -105,7 +105,7 @@ class ImageMixin:
 
 
 
-    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3']):
+    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], **kwargs):
         """ Return a pandas dataframe for the given imagenames
         inputs:
         - image_names: a list of image names
@@ -125,7 +125,7 @@ class ImageMixin:
             image_names = [image_names]
 
         # Get data
-        response = self.post_images(image_names, imagetimeformat=imagetimeformat)
+        response = self.post_images(image_names, imagetimeformat=imagetimeformat, **kwargs)
         jsonresponse = response.json()
 
         # Catch no images
@@ -203,8 +203,8 @@ class ImageMixin:
 
 
 
-    def get_images_df_clipboard(self, xvar='unixtime'):
+    def get_images_df_clipboard(self, xvar='unixtime', **kwargs):
         """ A convenient clipboard getter. Returns all parameters, and places the desired one in xvar
         """
-        df = self.get_images_df(pd.read_clipboard(header=None)[0].tolist(), xvar=xvar)
+        df = self.get_images_df(pd.read_clipboard(header=None)[0].tolist(), xvar=xvar, **kwargs)
         return df
