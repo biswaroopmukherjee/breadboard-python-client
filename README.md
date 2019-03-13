@@ -1,6 +1,6 @@
 # breadboard-python-client
 
-The python client for the Breadboard API. Gets parameters from the experiment and matches them to your images.
+The python client for the [Breadboard API](https://github.com/biswaroopmukherjee/breadboard). Gets parameters from the experiment and matches them to your images.
 
 ## Installation
 
