@@ -104,7 +104,6 @@ class ImageMixin:
         return response
 
 
-
     def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], **kwargs):
         """ Return a pandas dataframe for the given imagenames
         inputs:
@@ -128,9 +127,9 @@ class ImageMixin:
         response = self.post_images(image_names, imagetimeformat=imagetimeformat, **kwargs)
         jsonresponse = response.json()
 
-        # Catch no images
-        if len(jsonresponse)==1 and jsonresponse['detail']=='warning: no run found':
-            raise RuntimeError('No runs found. Make sure that breadboard is running on the control computer, and that the image names are correct.')
+        # If force_match tried and failed, (might need to move this to post_images)
+        try:    raise RuntimeError(jsonresponse.get('detail'))
+        except: pass
 
         # Prepare df
         df = pd.DataFrame(columns = ['imagename'])
@@ -145,15 +144,14 @@ class ImageMixin:
         if paramsin=='*':
             #  Get all params
             for jr in jsonresponse:
-                params = set(jr['run']['parameters'].keys())
+                try:    params = set(jr['run']['parameters'].keys())
+                except: params = set()
                 paramsall = paramsall.union(params)
         elif paramsin=='list_bound_only':
             # Get listbound params
             for jr in jsonresponse:
-                try:
-                    params = set(jr['run']['parameters']['ListBoundVariables'])
-                except:
-                    params = set()
+                try:    params = set(jr['run']['parameters']['ListBoundVariables'])
+                except: params = set()
                 paramsall = paramsall.union(params)
         else:# use set of params provided
             if isinstance(paramsin, str):
@@ -177,30 +175,36 @@ class ImageMixin:
         paramsall = (paramsall - removeparams).union(addparams)
 
 
+
+
         # Populate dataframe
         for i,r in df.iterrows():
+            try: # to get the runtime
+                runtime = jsonresponse[i]['run']['runtime']
+            except:
+                runtime = '1970'
+                print('Warning: no run found for some images')
+
             for param in paramsall:
+
                 if param=='runtime':
-                    df.at[i, param] = jsonresponse[i]['run']['runtime']
+                    df.at[i, param] = runtime
                 elif param=='unixtime':
-                    df.at[i, param] = int(dateutil.parser.parse(jsonresponse[i]['run']['runtime']).timestamp())
+                    df.at[i, param] = int(dateutil.parser.parse(runtime).timestamp())
                 else:
-                    try: # to get the run parameters
-                        df.at[i,param] = jsonresponse[i]['run']['parameters'][param]
+                    # try to get run params
+                    try: df.at[i,param] = jsonresponse[i]['run']['parameters'][param]
                     except:
-                        try:# to get the bare image parameters
-                            df.at[i,param] = jsonresponse[i][param]
-                        except: # nan the rest
-                            df.at[i,param] = float('nan')
+                        # try to get the bare image parameters
+                        try:    df.at[i,param] = jsonresponse[i][param]
+                        except: df.at[i,param] = float('nan') # nan the rest
+
 
         # Get the xvar
-        try:
-            df['x'] = df[xvar]
-        except:
-            warn('Invalid xvar!')
+        try:        df['x'] = df[xvar]
+        except:     warn('Invalid xvar!')
 
         return df
-
 
 
     def get_images_df_clipboard(self, xvar='unixtime', **kwargs):

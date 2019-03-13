@@ -18,11 +18,11 @@ class TestClientRaw(object):
         time.sleep(0.5) #Avoid a rate limit
 
     def test_get_single_image_raw(self, client):
-        r = client.get_images_json('10-09-2018_00_21_57_TopA')
+        r = client.post_images('10-09-2018_00_21_57_TopA')
         assert r.status_code == 200
 
     def test_get_multiple_images_raw(self, client):
-        r = client.get_images_json(['10-09-2018_00_21_57_TopA','10-09-2018_00_21_57_TopB'])
+        r = client.post_images(['10-09-2018_00_21_57_TopA','10-09-2018_00_21_57_TopB'])
         assert r.status_code == 200
 
 
