@@ -53,7 +53,7 @@ To get specific parameters, use:
 ```python
 imagenames = ['10-09-2018_00_27_44_TopA','10-09-2018_00_27_44_TopB']
 params = ['FB_field_13_V','ImagFreq0']
-df = bc.get_images_df(imagenames)
+df = bc.get_images_df(imagenames, paramsin=params)
 ```
 This produces:
 
