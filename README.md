@@ -38,9 +38,9 @@ This produces a pandas dataframe:
 
 ---
 
-By default, you will get the variables that were list-bound in Cicero. This is most convenient if you are scanning some parameter in Cicero, and don't want to write down which variables were connected to lists. 
+By default, you will get the variables that were list-bound in Cicero. This is most convenient if you were running a list (F12), and don't want to write down which variables were important. 
 
-The `paramsin` keyword argument lets you choose what parameters to return. You can request all parameters by passing the argument `paramsin='*'`, or pass a list of desired parameters (see below). 
+The `paramsin` keyword argument lets you choose what parameters to return. You can request all parameters by passing the argument `paramsin='*'`, or pass a list of desired parameters `paramsin=[param1, param2, ...]`. 
 
 The x column is a copy of another column. This makes plotting and analysis easy (everything is versus `df.x`). By default, the x column is the timestamp, but you can select any other parameter (say `paramname`) by passing the argument `xvar=paramname`.
 
