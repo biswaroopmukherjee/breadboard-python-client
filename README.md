@@ -10,7 +10,7 @@ Get it with `pip install breadboard`. Ask me for an API key, and store it somewh
 
 ## Usage
 
-First, import the breadboard module and initialize with your secure API key (stored under 'filepath/API_CONFIG.json`):
+First, import the breadboard module and initialize with your secure API key (stored under `filepath/API_CONFIG.json`):
 
 ```python
 from breadboard import BreadboardClient
