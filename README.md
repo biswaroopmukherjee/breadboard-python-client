@@ -22,8 +22,13 @@ bc = BreadboardClient(config_path='filepath/API_CONFIG.json')
 ### Ctrl-C:
 This is the easiest way to get parameters:
 1. Copy a list of imagenames.
-2. Run `df = bc.get_images_df_clipboard()`.
-3. Print the resulting pandas dataframe `print(df)`:
+2. Run the following:
+```python
+df = bc.get_images_df_clipboard()
+print(df.head())
+```
+
+This produces a pandas dataframe:
 
 |    | imagename                      |           x |   reWhirrFreq |   holdTime |   TOF |   evapEndTOPMHz |   accordionHoldSpacing |    unixtime |   reWhirrTime |
 |---:|:-------------------------------|------------:|--------------:|-----------:|------:|----------------:|-----------------------:|------------:|--------------:|
