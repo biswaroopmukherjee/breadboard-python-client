@@ -1,1 +1,5 @@
-{"api_key": "APIKEY_HERE"}
+{
+  "api_key": "API_KEY_HERE",
+  "lab_name": "LAB_NAME",
+  "api_url":"API_URL"
+}

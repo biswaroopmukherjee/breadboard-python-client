@@ -1,9 +1,9 @@
-
 import json
 import pandas as pd
 import datetime
 import dateutil
 import re
+from tqdm import tqdm_notebook as tqdm
 
 from warnings import warn
 
@@ -12,6 +12,8 @@ TIMEFORMATS = {
     'FERMI3':'%Y-%m-%d_%H_%M_%S',
     'FERMI3_2':'%Y-%m-%d_%H-%M-%S',
 }
+
+FORCEMATCH_BATCHSIZE = 20
 
 def timestr_to_datetime(time_string, format=None):
     time_string = re.sub(' ','0',time_string[0:19])
@@ -47,16 +49,28 @@ class ImageMixin:
         return response
 
 
-    def post_images(self, image_names=None, auto_time=True, image_times=None, force_match=False, datetime_range=None, imagetimeformat=TIMEFORMATS['FERMI3'], **kwargs):
-        # return all the API data corresponding to a set of images as JSON
-        # todo: handle error codes
+    def post_images(self, image_names=None, auto_time=True, image_times=None, force_match=False, datetime_range=None, imagetimeformat=TIMEFORMATS['FERMI3'], page='', **kwargs):
         """
+        Returns all the API data corresponding to a set of images as JSON
+
         Query modes:
         0) Nothing: returns a list of images
         1) Just a list of image names
         2) Image names + image times
-        3) Force match : if you want to set the runtimes of the images
-        4) datetime range: a [start, end] array of python datetimes
+        3) Force match : if you want to reset the runtimes of the images. 
+        4) datetime range: get all images between two times
+
+        Inputs:
+        - image_names: a list of image names
+        - auto_time: if True, automatically find the image_times from the image names (eg if the image name is a timestamp)
+        - image_times: an optional list of image times
+        - force_match: option to reset image runtimes in the API
+        - datetime_range: a [start, end] array of python datetimes
+        - imagetimeformat: python strptime format for reading the image times: eg '%Y-%m-%d_%H_%M_%S' (for Fermi 3)
+        
+        Outputs:
+        - a json object containing the entire response from the API
+
         """
         if image_names:
             if isinstance(image_names,str):
@@ -68,6 +82,7 @@ class ImageMixin:
         if self.lab_name=='bec1':
             imagetimeformat = TIMEFORMATS['BEC1']
 
+        # Automatically find the image times from the imagenames
         if auto_time:
             try:
                 image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
@@ -77,7 +92,6 @@ class ImageMixin:
                     image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
                 except:
                     raise ValueError('Please check your image timestamps')
-
 
         if image_times:
             image_times = [clean_image_time(image_time) for image_time in image_times]
@@ -96,17 +110,22 @@ class ImageMixin:
             'datetime_range': datetime_range,
             **kwargs
         }
+
         payload_clean = {k: v for k, v in payload_dirty.items() if not (
                         v==None or
                         (isinstance(v, tuple) and (None in v))
                 )}
-        response = self._send_message('post', '/images/', data=json.dumps(payload_clean))
+
+        response = self._send_message('post', '/images/'+page, data=json.dumps(payload_clean))
+
         return response
 
 
-    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], **kwargs):
+
+
+    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], force_match=False, **kwargs):
         """ Return a pandas dataframe for the given imagenames
-        inputs:
+        Inputs:
         - image_names: a list of image names
         - paramsin:
             > ['param1','param2',...] : a list of params
@@ -114,22 +133,54 @@ class ImageMixin:
             > 'list_bound_only' for listbound params only
         - xvar: a variable to use as df.x
         - extended: a boolean to show all the keys from the image, like the url and id
-        - imagetimeformat : a python strptime format to parse the image times
+        - imagetimeformat : a python strptime format to parse the image times: eg '%Y-%m-%d_%H_%M_%S' (for Fermi 3)
+        - force_match: option to reset image runtimes in the API
+        Extra inputs used by post_message:
+        - auto_time: if True, automatically find the image_times from the image names (eg if the image name is a timestamp)
+        - image_times: an optional list of image times
+        - datetime_range: a [start, end] array of python datetimes
+ 
 
-        outputs:
+        Outputs:
         - df: the dataframe with params
+
+        Note: force_match increases the time, so the input is broken up to prevent blackbox timeouts.
+        If force_match:
+        - Print a quick message saying this is time-consuming, and wait until the API returns something (TODO: speed this process up)
+        - When the API returns something, assume the force_match is done, and then query the rest of the data without force_match (as follows:)
+
+        If not force_match:
+        - Query through all pages, with a tqdm display
+        - Collate all the data in a combined json
+        
         """
 
         if isinstance(image_names,str):
             image_names = [image_names]
 
-        # Get data
-        response = self.post_images(image_names, imagetimeformat=imagetimeformat, **kwargs)
-        jsonresponse = response.json()
+        # Force match if needed
+        if force_match:
+            print('Re-matching runs to images. Note: this takes some time, so run force_match=False to speed up.')
+            for i in tqdm(range(len(image_names)//FORCEMATCH_BATCHSIZE), 
+                          desc='Matching...',
+                          leave=False):
+                out = self.post_images(image_names[i*FORCEMATCH_BATCHSIZE : (i+1)*FORCEMATCH_BATCHSIZE], imagetimeformat=imagetimeformat, force_match=True, **kwargs)
+                # If force_match tried and failed, (might need to move this to post_images)
+                try:    raise RuntimeError(out.json().get('detail'))
+                except: pass
 
-        # If force_match tried and failed, (might need to move this to post_images)
-        try:    raise RuntimeError(jsonresponse.get('detail'))
-        except: pass
+        # Get the first page
+        pbar = tqdm(total=len(image_names))
+        response = self.post_images(image_names, imagetimeformat=imagetimeformat, force_match=False, **kwargs)
+        images = response.json().get('results')
+        pbar.update(len(images))
+
+        # Get all pages. Note: Force matching only needs to be run once
+        while response.json().get('next'):
+            page = re.split('images/', response.json().get('next'))[1]
+            response = self.post_images(image_names, imagetimeformat=imagetimeformat, force_match=False, page=page, **kwargs)
+            images = images + response.json().get('results')
+            pbar.update(len(response.json().get('results')))
 
         # Prepare df
         df = pd.DataFrame(columns = ['imagename'])
@@ -138,18 +189,18 @@ class ImageMixin:
 
         # Prepare params:
         if extended:
-            paramsall = set(jsonresponse[0].keys())
+            paramsall = set(images[0].keys())
         else:
             paramsall = set()
         if paramsin=='*':
             #  Get all params
-            for jr in jsonresponse:
+            for jr in images:
                 try:    params = set(jr['run']['parameters'].keys())
                 except: params = set()
                 paramsall = paramsall.union(params)
         elif paramsin=='list_bound_only':
             # Get listbound params
-            for jr in jsonresponse:
+            for jr in images:
                 try:    params = set(jr['run']['parameters']['ListBoundVariables'])
                 except: params = set()
                 paramsall = paramsall.union(params)
@@ -178,9 +229,9 @@ class ImageMixin:
 
 
         # Populate dataframe
-        for i,r in df.iterrows():
+        for i, r in df.iterrows():
             try: # to get the runtime
-                runtime = jsonresponse[i]['run']['runtime']
+                runtime = images[i]['run']['runtime']
             except:
                 runtime = '1970'
                 print('Warning: no run found for some images')
@@ -193,10 +244,10 @@ class ImageMixin:
                     df.at[i, param] = int(dateutil.parser.parse(runtime).timestamp())
                 else:
                     # try to get run params
-                    try: df.at[i,param] = jsonresponse[i]['run']['parameters'][param]
+                    try: df.at[i,param] = images[i]['run']['parameters'][param]
                     except:
                         # try to get the bare image parameters
-                        try:    df.at[i,param] = jsonresponse[i][param]
+                        try:    df.at[i,param] = images[i][param]
                         except: df.at[i,param] = float('nan') # nan the rest
 
 
