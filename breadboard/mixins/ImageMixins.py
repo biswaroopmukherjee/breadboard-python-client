@@ -161,7 +161,7 @@ class ImageMixin:
         # Force match if needed
         if force_match:
             print('Re-matching runs to images. Note: this takes some time, so run force_match=False to speed up.')
-            for i in tqdm(range(len(image_names)//FORCEMATCH_BATCHSIZE), 
+            for i in tqdm(range(1+len(image_names)//FORCEMATCH_BATCHSIZE), 
                           desc='Matching...',
                           leave=False):
                 out = self.post_images(image_names[i*FORCEMATCH_BATCHSIZE : (i+1)*FORCEMATCH_BATCHSIZE], imagetimeformat=imagetimeformat, force_match=True, **kwargs)
