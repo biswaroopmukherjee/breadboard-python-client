@@ -7,7 +7,7 @@ from breadboard.client import BreadboardClient
 @pytest.fixture(scope='module')
 def client():
     """Client that connects to the API. Needs auth info in API_CONFIG.json"""
-    return BreadboardClient(config_path = 'tests/API_CONFIG.json')
+    return BreadboardClient(config_path='tests/API_CONFIG.json', lab_name='bec1')
 
 
 @pytest.mark.usefixtures('client')
