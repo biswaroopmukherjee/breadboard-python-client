@@ -11,7 +11,7 @@ with open('LICENSE') as f:
 
 setup(
     name='breadboard',
-    version='0.2.2',
+    version='0.3',
     description='Python API client for the Breadboard API in the Zwierlein labs',
     long_description_content_type='text/markdown',
     long_description='Sorry, but twine has a bug preventing me from uploading the readme. Checkout the repo on github for a readme.',

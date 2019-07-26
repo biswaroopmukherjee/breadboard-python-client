@@ -4,6 +4,7 @@ import datetime
 import dateutil
 import re
 from tqdm import tqdm_notebook as tqdm
+import logging
 
 from warnings import warn
 
@@ -117,7 +118,9 @@ class ImageMixin:
                 )}
 
         response = self._send_message('post', '/images/'+page, data=json.dumps(payload_clean))
-
+ 
+        if not response.json().get('results'):
+            raise RuntimeError(response.json().get('detail'))
         return response
 
 
@@ -157,6 +160,8 @@ class ImageMixin:
 
         if isinstance(image_names,str):
             image_names = [image_names]
+        
+        logging.debug('Number of images to get:' + str(len(image_names)))
 
         # Force match if needed
         if force_match:
@@ -165,9 +170,8 @@ class ImageMixin:
                           desc='Matching...',
                           leave=False):
                 out = self.post_images(image_names[i*FORCEMATCH_BATCHSIZE : (i+1)*FORCEMATCH_BATCHSIZE], imagetimeformat=imagetimeformat, force_match=True, **kwargs)
-                # If force_match tried and failed, (might need to move this to post_images)
-                try:    raise RuntimeError(out.json().get('detail'))
-                except: pass
+
+
 
         # Get the first page
         pbar = tqdm(total=len(image_names))
@@ -184,7 +188,10 @@ class ImageMixin:
 
         # Prepare df
         df = pd.DataFrame(columns = ['imagename'])
-        df['imagename'] = image_names
+        try:
+            df['imagename'] = [image['name'] for image in images]
+        except:
+            raise RuntimeError('Couldnt extract imagenames')
         df['x'] = 0
 
         # Prepare params:
@@ -229,12 +236,14 @@ class ImageMixin:
 
 
         # Populate dataframe
-        for i, r in df.iterrows():
+        for i, _ in df.iterrows():
+
             try: # to get the runtime
                 runtime = images[i]['run']['runtime']
+                logging.debug(runtime)
             except:
                 runtime = '1970'
-                print('Warning: no run found for some images')
+                warn('no run found for some images')
 
             for param in paramsall:
 
@@ -254,6 +263,8 @@ class ImageMixin:
         # Get the xvar
         try:        df['x'] = df[xvar]
         except:     warn('Invalid xvar!')
+
+        df = df.sort_values(by='imagename', ascending=True).reset_index(drop=True)
 
         return df
 
