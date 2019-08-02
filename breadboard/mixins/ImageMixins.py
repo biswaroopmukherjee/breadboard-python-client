@@ -84,15 +84,18 @@ class ImageMixin:
             imagetimeformat = TIMEFORMATS['BEC1']
 
         # Automatically find the image times from the imagenames
-        if auto_time:
-            try:
-                image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
-            except:
-                imagetimeformat = TIMEFORMATS['FERMI3_2']
+        if image_names:
+            if auto_time:
                 try:
                     image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
                 except:
-                    raise ValueError('Please check your image timestamps')
+                    imagetimeformat = TIMEFORMATS['FERMI3_2']
+                    try:
+                        image_times = [timestr_to_datetime(image_name, format=imagetimeformat) for image_name in image_names]
+                    except:
+                        raise ValueError('Please check your image timestamps')
+        else:
+            image_times = None
 
         if image_times:
             image_times = [clean_image_time(image_time) for image_time in image_times]
@@ -102,13 +105,16 @@ class ImageMixin:
 
         if datetime_range:
             datetime_range = [clean_image_time(image_time) for image_time in datetime_range]
-
+        else:
+            datetime_range = [None, None]
+    
         payload_dirty = {
             'lab': self.lab_name,
             'names': namelist,
             'force_match': force_match,
             'created': image_times,
-            'datetime_range': datetime_range,
+            'start_datetime': datetime_range[0],
+            'end_datetime': datetime_range[1],
             **kwargs
         }
 
@@ -126,7 +132,7 @@ class ImageMixin:
 
 
 
-    def get_images_df(self, image_names, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], force_match=False, **kwargs):
+    def get_images_df(self, image_names=None, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], force_match=False, **kwargs):
         """ Return a pandas dataframe for the given imagenames
         Inputs:
         - image_names: a list of image names
@@ -157,34 +163,38 @@ class ImageMixin:
         - Collate all the data in a combined json
         
         """
+        if image_names:
+            if isinstance(image_names,str):
+                image_names = [image_names]
+            
+            logging.debug('Number of images to get:' + str(len(image_names)))
 
-        if isinstance(image_names,str):
-            image_names = [image_names]
+            # Force match if needed
+            if force_match:
+                print('Re-matching runs to images. Note: this takes some time, so run force_match=False to speed up.')
+                for i in tqdm(range(1+len(image_names)//FORCEMATCH_BATCHSIZE), 
+                            desc='Matching...',
+                            leave=False):
+                    images_to_post = image_names[i*FORCEMATCH_BATCHSIZE : (i+1)*FORCEMATCH_BATCHSIZE]
+                    if images_to_post:
+                        self.post_images(images_to_post, imagetimeformat=imagetimeformat, force_match=True, **kwargs)
+
+
         
-        logging.debug('Number of images to get:' + str(len(image_names)))
-
-        # Force match if needed
-        if force_match:
-            print('Re-matching runs to images. Note: this takes some time, so run force_match=False to speed up.')
-            for i in tqdm(range(1+len(image_names)//FORCEMATCH_BATCHSIZE), 
-                          desc='Matching...',
-                          leave=False):
-                out = self.post_images(image_names[i*FORCEMATCH_BATCHSIZE : (i+1)*FORCEMATCH_BATCHSIZE], imagetimeformat=imagetimeformat, force_match=True, **kwargs)
-
-
-
         # Get the first page
-        pbar = tqdm(total=len(image_names))
-        response = self.post_images(image_names, imagetimeformat=imagetimeformat, force_match=False, **kwargs)
-        images = response.json().get('results')
+        response = self.post_images(image_names=image_names, imagetimeformat=imagetimeformat, force_match=False, **kwargs)
+        jsonresponse = response.json()
+        pbar = tqdm(total=jsonresponse.get('count'))
+        images = jsonresponse.get('results')
         pbar.update(len(images))
 
         # Get all pages. Note: Force matching only needs to be run once
-        while response.json().get('next'):
-            page = re.split('images/', response.json().get('next'))[1]
+        while jsonresponse.get('next'):
+            page = re.split('images/', jsonresponse.get('next'))[1]
             response = self.post_images(image_names, imagetimeformat=imagetimeformat, force_match=False, page=page, **kwargs)
-            images = images + response.json().get('results')
-            pbar.update(len(response.json().get('results')))
+            jsonresponse = response.json()
+            images = images + jsonresponse.get('results')
+            pbar.update(len(jsonresponse.get('results')))
 
         # Prepare df
         df = pd.DataFrame(columns = ['imagename'])
