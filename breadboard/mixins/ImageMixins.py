@@ -231,7 +231,6 @@ class ImageMixin:
                     'name',
                     'thumbnail',
                     'atomsperpixel',
-                    'odpath',
                     'settings',
                     'ListBoundVariables',
                     'camera',

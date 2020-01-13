@@ -78,4 +78,12 @@ To copy images from your clipboard and use it for other things, use:
 `pd.read_clipboard(header=None)[0].tolist()`
 
 
+---
 
+To get a list of images between two datetimes, use:
+```python
+import datetime
+start_datetime = datetime.datetime(2019,7,1,0,0,55)
+end_datetime = datetime.datetime(2019,7,2,0,20,55)
+out = bc.get_images_df(datetime_range=[start_datetime, end_datetime])
+```
