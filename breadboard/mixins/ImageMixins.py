@@ -98,6 +98,8 @@ class ImageMixin:
             image_times = None
 
         if image_times:
+            if type(image_times)==datetime.datetime:
+                image_times = [image_times]
             image_times = [clean_image_time(image_time) for image_time in image_times]
             image_times = ','.join(image_times)
         else:
