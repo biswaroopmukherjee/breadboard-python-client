@@ -17,6 +17,16 @@ from breadboard import BreadboardClient
 bc = BreadboardClient(config_path='filepath/API_CONFIG.json')
 ```
 
+Note: your `API_CONFIG.json` should look like:
+
+```json
+{
+  "api_key": "API_TOKEN",
+  "lab_name": "lab_name",
+  "api_url": "https://fermi3.com"
+}
+```
+
 ---
 
 ### Ctrl-C:
@@ -87,3 +97,27 @@ start_datetime = datetime.datetime(2019,7,1,0,0,55)
 end_datetime = datetime.datetime(2019,7,2,0,20,55)
 out = bc.get_images_df(datetime_range=[start_datetime, end_datetime])
 ```
+
+
+---
+
+### Development
+
+Clone this repository and create a virtual environment:
+
+```bash
+pip install virtualenv --user
+python -m virtualenv env
+source env/bin/activate
+pip install -r requirements.txt --user
+```
+
+To run the tests, add a `API_CONFIG.json` file into the `tests/` folder and run:
+
+```bash
+pytest
+```
+
+Start by adding a test, run `pytest` to see it fail, and then make it not fail by adding the feature you want.
+
+For quick checks, run `jupyter notebook` and open the `Client tests.ipynb` notebook. 

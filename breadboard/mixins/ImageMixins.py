@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 import dateutil
 import re
-from tqdm import tqdm_notebook as tqdm
+from tqdm.auto import tqdm
 import logging
 
 from warnings import warn
@@ -134,7 +134,7 @@ class ImageMixin:
 
 
 
-    def get_images_df(self, image_names=None, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], force_match=False, **kwargs):
+    def get_images_df(self, image_names=None, paramsin="list_bound_only", xvar='unixtime', extended=False, imagetimeformat=TIMEFORMATS['FERMI3'], force_match=False, tqdm_disable=False, **kwargs):
         """ Return a pandas dataframe for the given imagenames
         Inputs:
         - image_names: a list of image names
@@ -176,7 +176,8 @@ class ImageMixin:
                 print('Re-matching runs to images. Note: this takes some time, so run force_match=False to speed up.')
                 for i in tqdm(range(1+len(image_names)//FORCEMATCH_BATCHSIZE), 
                             desc='Matching...',
-                            leave=False):
+                            leave=False,
+                            disable=tqdm_disable):
                     images_to_post = image_names[i*FORCEMATCH_BATCHSIZE : (i+1)*FORCEMATCH_BATCHSIZE]
                     if images_to_post:
                         self.post_images(images_to_post, imagetimeformat=imagetimeformat, force_match=True, **kwargs)
@@ -186,7 +187,7 @@ class ImageMixin:
         # Get the first page
         response = self.post_images(image_names=image_names, imagetimeformat=imagetimeformat, force_match=False, **kwargs)
         jsonresponse = response.json()
-        pbar = tqdm(total=jsonresponse.get('count'))
+        pbar = tqdm(total=jsonresponse.get('count'), disable=tqdm_disable)
         images = jsonresponse.get('results')
         pbar.update(len(images))
 
