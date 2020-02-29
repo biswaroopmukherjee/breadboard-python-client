@@ -120,4 +120,7 @@ pytest
 
 Start by adding a test, run `pytest` to see it fail, and then make it not fail by adding the feature you want.
 
-For quick checks, run `jupyter notebook` and open the `Client tests.ipynb` notebook. 
+For quick checks, run `jupyter notebook` and open the `Client tests.ipynb` notebook. Remember to initialize the client with the debugger turned on:
+```python
+bc = BreadboardClient(config_path='API_CONFIG.json', debug=True)
+```

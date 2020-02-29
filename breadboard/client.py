@@ -4,7 +4,7 @@ import json
 import logging
 
 from breadboard.auth import BreadboardAuth
-from breadboard.mixins import ImageMixins
+from breadboard.mixins import ImageMixins, RunMixins
 
 
 class QuoteFixedSession(requests.Session):
@@ -17,7 +17,7 @@ class QuoteFixedSession(requests.Session):
 
 
 
-class BreadboardClient(ImageMixins.ImageMixin):
+class BreadboardClient(ImageMixins.ImageMixin, RunMixins.RunMixin):
     def __init__(self, config_path, lab_name=None, debug=False):
 
         if not config_path:
