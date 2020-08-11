@@ -201,6 +201,10 @@ class RunMixin:
         if 'analyzed_variables' in run_dict['parameters']:
             analyzed_variables = list(set().union(
                 run_dict['parameters']['analyzed_variables'], [var_name for var_name in analysis_dict]))
+            run_dict['parameters'].update({'analyzed_variables':analyzed_variables})
+        else:
+            run_dict['parameters'].update({'analyzed_variables':[var_name for var_name in analysis_dict]})
+            
         run_dict['parameters'].update(analysis_dict)
         payload = json.dumps(run_dict)
         response = self._send_message(
