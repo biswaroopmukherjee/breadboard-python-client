@@ -160,7 +160,19 @@ class RunMixin:
 
         return df
 
-    def append_images_to_run(self, run_id, image_filenames, printing=True):
+    def add_measurement_name_to_run(self, run_id, measurement_name):
+        run_dict = self._send_message(
+            'get', '/runs/' + str(run_id) + '/').json()
+        if 'measurement_name' in run_dict['parameters']:
+            raise ValueError(
+                'This run_id is already associated with a measurement.')
+        run_dict['parameters'].update({'measurement_name': measurement_name})
+        payload = json.dumps(run_dict)
+        response = self._send_message(
+            'put', '/runs/' + str(run_id) + '/', data=payload)
+        return response
+
+    def append_images_to_run(self, run_id, image_filenames, measurement_name = None, printing=True):
         if isinstance(image_filenames, str):
             image_filenames = [image_filenames]
         run_dict = self._send_message(
@@ -179,6 +191,8 @@ class RunMixin:
             for var in run_dict['parameters']['ListBoundVariables']:
                 print(var + ': ')
                 print(run_dict['parameters'][var])
+        if measurement_name is not None:
+            self.add_measurement_name_to_run(run_id, measurement_name)
         return response
 
     def append_analysis_to_run(self, run_id, analysis_dict, printing=True):
@@ -210,3 +224,34 @@ class RunMixin:
         response = self._send_message(
             'put', '/runs/' + str(run_id) + '/', data=payload)
         return response
+
+    def get_runs_df_from_ids(self, run_ids, optional_column_names = []):
+        if not isinstance(run_ids, list):
+            run_ids = [run_ids]
+        idx = 0
+        
+        for run_id in run_ids:
+            display_run_dict = {}
+            if isinstance(run_id, int):
+                run_id = str(run_id)
+            resp = self._send_message('get','/runs/{run_id}/'.format(run_id = run_id)).json()
+            display_run_dict['run_id'] = int(run_id)
+            run_dict = resp['parameters']
+            if 'badshot' not in run_dict:
+                display_run_dict['badshot'] = False
+            else:
+                display_run_dict['badshot'] = run_dict['badshot']
+            display_run_dict.update({'notes':resp['notes']})
+            for column in optional_column_names:
+                if column in run_dict:
+                    display_run_dict.update({column:run_dict[column]})
+            if 'analyzed_variables' in run_dict:
+                display_run_dict.update({key:run_dict[key] for key in run_dict['analyzed_variables']})
+            display_run_dict.update({key:run_dict[key] for key in run_dict['ListBoundVariables']})
+
+            if idx == 0:
+                df = pd.DataFrame(display_run_dict, index = [0])
+            else:
+                df = df.append(display_run_dict, ignore_index = True)
+            idx += 1
+        return df
