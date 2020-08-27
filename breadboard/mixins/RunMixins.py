@@ -201,10 +201,12 @@ class RunMixin:
         if 'analyzed_variables' in run_dict['parameters']:
             analyzed_variables = list(set().union(
                 run_dict['parameters']['analyzed_variables'], [var_name for var_name in analysis_dict]))
-            run_dict['parameters'].update({'analyzed_variables':analyzed_variables})
+            run_dict['parameters'].update(
+                {'analyzed_variables': analyzed_variables})
         else:
-            run_dict['parameters'].update({'analyzed_variables':[var_name for var_name in analysis_dict]})
-            
+            run_dict['parameters'].update(
+                {'analyzed_variables': [var_name for var_name in analysis_dict]})
+
         run_dict['parameters'].update(analysis_dict)
         payload = json.dumps(run_dict)
         response = self._send_message(
@@ -212,6 +214,35 @@ class RunMixin:
         if printing:
             print('run_id ' + str(run_id) + ' analyzed: ' +
                   str(analysis_dict) + '\n')
+            for var in run_dict['parameters']['ListBoundVariables']:
+                print(var + ': ')
+                print(run_dict['parameters'][var])
+        return response
+
+    def add_instrument_readout_to_run(self, run_id, instruments_dict, printing=True):
+        for instr_name in instruments_dict:
+            if '_in_' not in instr_name:
+                raise ValueError(
+                    '{name} is not in format intstrname_in_unitname (e.g. wavemeter_in_THz). Add units properly.'.format(name=instr_name))
+
+        run_dict = self._send_message(
+            'get', '/runs/' + str(run_id) + '/').json()
+        if 'instrument_names' in run_dict['parameters']:
+            instrument_names = list(set().union(
+                run_dict['parameters']['instrument_names'], [instr_name for instr_name in instruments_dict]))
+            run_dict['parameters'].update(
+                {'instrument_names': instrument_names})
+        else:
+            run_dict['parameters'].update(
+                {'instrument_names': [instr_name for instr_name in instruments_dict]})
+
+        run_dict['parameters'].update(instruments_dict)
+        payload = json.dumps(run_dict)
+        response = self._send_message(
+            'put', '/runs/' + str(run_id) + '/', data=payload)
+        if printing:
+            print('run_id ' + str(run_id) + ' associated with: ' +
+                  str(instruments_dict) + '\n')
             for var in run_dict['parameters']['ListBoundVariables']:
                 print(var + ': ')
                 print(run_dict['parameters'][var])
@@ -256,6 +287,9 @@ class RunMixin:
             if 'analyzed_variables' in run_dict:
                 display_run_dict.update(
                     {key: run_dict[key] for key in run_dict['analyzed_variables']})
+            if 'instrument_names' in run_dict:
+                display_run_dict.update(
+                    {key: run_dict[key] for key in run_dict['instrument_names']})
             display_run_dict.update(
                 {key: run_dict[key] for key in run_dict['ListBoundVariables']})
 
