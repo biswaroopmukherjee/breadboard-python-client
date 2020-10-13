@@ -261,41 +261,62 @@ class RunMixin:
         return response
 
     def get_runs_df_from_ids(self, run_ids, optional_column_names=[]):
-        if not isinstance(run_ids, list):
-            run_ids = [run_ids]
-        idx = 0
-
-        for run_id in run_ids:
-            display_run_dict = {}
-            if isinstance(run_id, int):
-                run_id = str(run_id)
-            resp = self._send_message(
-                'get', '/runs/{run_id}/'.format(run_id=run_id)).json()
-            display_run_dict['run_id'] = int(run_id)
+        """takes run_ids, either a list of run_id's or a single run_id int, and returns a df 
+        of the columns relevant for plotting or analysis
+        """
+        def filter_response(resp):
+            """ takes breadboard response resp (a nested dict) and returns a filtered and flattened dict.
+            Try with resp = bc._send_message('get', '/runs/259499').json() or 
+            resp = bc._send_message('get', '/runs/', params=params)['results'][idx]
+            """
+            filtered_rundict = {}
+            filtered_rundict['run_id'] = int(resp['id'])
             run_dict = resp['parameters']
             if 'badshot' not in run_dict:
-                display_run_dict['badshot'] = False
+                filtered_rundict['badshot'] = False
             else:
-                display_run_dict['badshot'] = run_dict['badshot']
-            display_run_dict.update({'notes': resp['notes']})
+                filtered_rundict['badshot'] = run_dict['badshot']
+            filtered_rundict.update({'notes': resp['notes']})
             for key in run_dict:
                 if 'manual_' in key:
-                    display_run_dict.update({key: run_dict[key]})
+                    filtered_rundict.update({key: run_dict[key]})
             for column in optional_column_names:
                 if column in run_dict:
-                    display_run_dict.update({column: run_dict[column]})
+                    filtered_rundict.update({column: run_dict[column]})
             if 'analyzed_variables' in run_dict:
-                display_run_dict.update(
+                filtered_rundict.update(
                     {key: run_dict[key] for key in run_dict['analyzed_variables']})
             if 'instrument_names' in run_dict:
-                display_run_dict.update(
+                filtered_rundict.update(
                     {key: run_dict[key] for key in run_dict['instrument_names']})
-            display_run_dict.update(
+            filtered_rundict.update(
                 {key: run_dict[key] for key in run_dict['ListBoundVariables']})
+            return filtered_rundict
 
-            if idx == 0:
-                df = pd.DataFrame(display_run_dict, index=[0])
-            else:
-                df = df.append(display_run_dict, ignore_index=True)
-            idx += 1
+        if not isinstance(run_ids, list):
+            run_ids = [run_ids]
+        if len(run_ids) == 1:
+            resp = bc._send_message('get',
+                                    '/runs/{idx}'.format(idx=str(run_ids[0]))
+                                    ).json()
+            filtered_rundict = filter_response(resp)
+            df = pd.DataFrame(filtered_rundict, index=[0])
+        else:
+            run_ids.sort()
+            datetime_range = []
+            start_datetime, end_datetime = [self._send_message(
+                'get', '/runs/{id}'.format(id=str(run_ids[idx]))).json()['runtime'] for idx in [0, -1]]
+            params = {'lab': self.lab_name,
+                      'start_datetime': start_datetime,
+                      'end_datetime': end_datetime,
+                      'limit': len(run_ids)}
+            resp = self._send_message('get', '/runs/', params=params).json()
+            idx = 0
+            for result in resp['results']:
+                filtered_rundict = filter_response(result)
+                if idx == 0:
+                    df = pd.DataFrame(filtered_rundict, index=[0])
+                else:
+                    df = df.append(filtered_rundict, ignore_index=True)
+                idx += 1
         return df
