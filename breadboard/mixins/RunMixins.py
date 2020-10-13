@@ -292,15 +292,26 @@ class RunMixin:
             filtered_rundict.update(
                 {key: run_dict[key] for key in run_dict['ListBoundVariables']})
             return filtered_rundict
-
+        sec_per_APIrequest = 0.13  # approximate benchmark
+        max_bruteforce_tolerance = 1
+        # sec, maximum time allowed for brute-force style repeated get requests
         if not isinstance(run_ids, list):
             run_ids = [run_ids]
         if len(run_ids) == 1:
-            resp = bc._send_message('get',
-                                    '/runs/{idx}'.format(idx=str(run_ids[0]))
-                                    ).json()
+            resp = self._send_message('get',
+                                      '/runs/{idx}'.format(idx=str(run_ids[0]))
+                                      ).json()
             filtered_rundict = filter_response(resp)
             df = pd.DataFrame(filtered_rundict, index=[0])
+        elif len(run_ids) * sec_per_APIrequest < max_bruteforce_tolerance:
+            df_rows = []
+            for run_id in run_ids:
+                resp = self._send_message('get',
+                                          '/runs/{idx}'.format(idx=str(run_id))
+                                          ).json()
+                filtered_rundict = filter_response(resp)
+                df_rows += [pd.DataFrame(filter_response(resp), index=[0])]
+            df = pd.concat(df_rows, sort=False)
         else:
             run_ids.sort()
             datetime_range = []
@@ -309,10 +320,9 @@ class RunMixin:
             params = {'lab': self.lab_name,
                       'start_datetime': start_datetime,
                       'end_datetime': end_datetime,
-                      'limit': len(run_ids)}
+                      'limit': (run_ids[-1] - run_ids[0] + 1)}
             resp = self._send_message('get', '/runs/', params=params).json()
-            # idx = 0
             df_rows = [pd.DataFrame(filter_response(result), index=[0])
-                       for result in resp['results']]
+                       for result in resp['results'] if result['id'] in run_ids]
             df = pd.concat(df_rows, sort=False)
         return df
