@@ -311,12 +311,8 @@ class RunMixin:
                       'end_datetime': end_datetime,
                       'limit': len(run_ids)}
             resp = self._send_message('get', '/runs/', params=params).json()
-            idx = 0
-            for result in resp['results']:
-                filtered_rundict = filter_response(result)
-                if idx == 0:
-                    df = pd.DataFrame(filtered_rundict, index=[0])
-                else:
-                    df = df.append(filtered_rundict, ignore_index=True)
-                idx += 1
+            # idx = 0
+            df_rows = [pd.DataFrame(filter_response(result), index=[0])
+                       for result in resp['results']]
+            df = pd.concat(df_rows, sort=False)
         return df
