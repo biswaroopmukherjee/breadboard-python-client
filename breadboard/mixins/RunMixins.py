@@ -291,6 +291,9 @@ class RunMixin:
                     {key: run_dict[key] for key in run_dict['instrument_names']})
             filtered_rundict.update(
                 {key: run_dict[key] for key in run_dict['ListBoundVariables']})
+            filtered_rundict.update(
+                {'runtime (format: %Y-%m-%dT%H:%M:%SZ)': resp['runtime']})
+
             return filtered_rundict
         sec_per_APIrequest = 0.13  # approximate benchmark
         max_bruteforce_tolerance = 1
